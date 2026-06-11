@@ -118,6 +118,15 @@ def daily_stats(date_from: str = None, date_to: str = None, strategies: str = No
     strats = strategies.split(",") if strategies else None
     return get_daily_stats(date_from=date_from, date_to=date_to, strategies=strats)
 
+@app.get("/stats/symbols")
+def symbol_stats(date_from: str = None, date_to: str = None, strategies: str = None):
+    strats = strategies.split(",") if strategies else None
+    return get_symbol_stats(date_from=date_from, date_to=date_to, strategies=strats)
+
+@app.get("/stats/weekdays")
+def weekday_stats(date_from: str = None, date_to: str = None, strategies: str = None):
+    strats = strategies.split(",") if strategies else None
+    return get_weekday_stats(date_from=date_from, date_to=date_to, strategies=strats)
 
 @app.post("/trades/{trade_id}/close/{strategy}")
 def close_strategy(trade_id: str, strategy: str, price: float = 0):
