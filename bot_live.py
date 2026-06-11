@@ -499,7 +499,6 @@ def start_price_monitor(symbol):
                 if isinstance(ticker, list):
                     ticker = ticker[0]
                 price = float(ticker["price"])
-                price  = float(ticker["price"])
                 if price > 0:
                     check_and_close_strategies(symbol, price, price)
             except Exception as e:
