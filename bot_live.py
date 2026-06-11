@@ -8,7 +8,7 @@ import json
 import argparse
 import openpyxl
 import math
-from db_live import init_db, insert_trade, update_strategy_status, get_symbol_stats, get_weekday_stats
+from db_live import init_db, insert_trade, update_strategy_status
 from openpyxl.utils import get_column_letter
 from dotenv import load_dotenv
 from threading import Thread, Lock

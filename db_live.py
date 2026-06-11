@@ -327,3 +327,87 @@ def manual_close_strategy(trade_id, strategy_name, close_price):
             return {"error": str(e)}
         finally:
             conn.close()
+
+def get_symbol_stats(date_from=None, date_to=None, strategies=None):
+    with _DB_LOCK:
+        conn = get_conn()
+        try:
+            conditions = ["s.status IN ('TP','SL')", "s.close_time IS NOT NULL"]
+            params = []
+            if date_from:
+                conditions.append("DATE(s.close_time) >= ?"); params.append(date_from)
+            if date_to:
+                conditions.append("DATE(s.close_time) <= ?"); params.append(date_to)
+            if strategies:
+                conditions.append(f"s.strategy IN ({','.join('?'*len(strategies))})"); params.extend(strategies)
+            where = " AND ".join(conditions)
+            rows = conn.execute(f"""
+                SELECT t.symbol, s.strategy, s.status, COUNT(*) as cnt
+                FROM trade_strategies s JOIN trades t ON t.id=s.trade_id
+                WHERE {where}
+                GROUP BY t.symbol, s.strategy, s.status
+            """, params).fetchall()
+            STRAT_PCT = {"12:4": {"tp": 12, "sl": 4}}
+            from collections import defaultdict
+            syms = defaultdict(lambda: {"tp":0,"sl":0,"pnl":0.0})
+            for row in rows:
+                pct = STRAT_PCT.get(row["strategy"], {"tp":0,"sl":0})
+                if row["status"] == "TP":
+                    syms[row["symbol"]]["tp"] += row["cnt"]
+                    syms[row["symbol"]]["pnl"] += row["cnt"] * pct["tp"]
+                else:
+                    syms[row["symbol"]]["sl"] += row["cnt"]
+                    syms[row["symbol"]]["pnl"] -= row["cnt"] * pct["sl"]
+            result = []
+            for sym, d in syms.items():
+                total = d["tp"] + d["sl"]
+                result.append({"symbol":sym,"tp":d["tp"],"sl":d["sl"],
+                    "pnl":round(d["pnl"],2),
+                    "winrate":round(d["tp"]/total*100,1) if total>0 else 0})
+            return sorted(result, key=lambda x: x["pnl"], reverse=True)
+        finally:
+            conn.close()
+
+
+def get_weekday_stats(date_from=None, date_to=None, strategies=None):
+    with _DB_LOCK:
+        conn = get_conn()
+        try:
+            conditions = ["s.status IN ('TP','SL')", "s.close_time IS NOT NULL"]
+            params = []
+            if date_from:
+                conditions.append("DATE(s.close_time) >= ?"); params.append(date_from)
+            if date_to:
+                conditions.append("DATE(s.close_time) <= ?"); params.append(date_to)
+            if strategies:
+                conditions.append(f"s.strategy IN ({','.join('?'*len(strategies))})"); params.extend(strategies)
+            where = " AND ".join(conditions)
+            rows = conn.execute(f"""
+                SELECT strftime('%w', s.close_time) as dow,
+                       s.strategy, s.status, COUNT(*) as cnt
+                FROM trade_strategies s JOIN trades t ON t.id=s.trade_id
+                WHERE {where}
+                GROUP BY dow, s.strategy, s.status
+            """, params).fetchall()
+            STRAT_PCT = {"12:4": {"tp": 12, "sl": 4}}
+            DAY_MAP = {"0":"Sunday","1":"Monday","2":"Tuesday","3":"Wednesday","4":"Thursday","5":"Friday","6":"Saturday"}
+            ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+            from collections import defaultdict
+            days = defaultdict(lambda: {"tp":0,"sl":0,"pnl":0.0})
+            for row in rows:
+                day = DAY_MAP.get(row["dow"], row["dow"])
+                pct = STRAT_PCT.get(row["strategy"], {"tp":0,"sl":0})
+                if row["status"] == "TP":
+                    days[day]["tp"] += row["cnt"]; days[day]["pnl"] += row["cnt"]*pct["tp"]
+                else:
+                    days[day]["sl"] += row["cnt"]; days[day]["pnl"] -= row["cnt"]*pct["sl"]
+            result = []
+            for day in ORDER:
+                if day in days:
+                    d = days[day]; total = d["tp"]+d["sl"]
+                    result.append({"day":day,"tp":d["tp"],"sl":d["sl"],
+                        "pnl":round(d["pnl"],2),
+                        "winrate":round(d["tp"]/total*100,1) if total>0 else 0})
+            return result
+        finally:
+            conn.close()

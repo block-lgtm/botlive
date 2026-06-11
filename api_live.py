@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from db_live import (
     get_open_trades, get_closed_trades, get_stats,
-    get_daily_stats, manual_close_strategy
+    get_daily_stats, manual_close_strategy, get_symbol_stats, get_weekday_stats
 )
 
 load_dotenv()
