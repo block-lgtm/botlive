@@ -83,7 +83,7 @@ def get_balance():
         # Для реального счёта: client = Client(API_KEY, API_SECRET)
         account = client.futures_account_balance()
         for b in account:
-            if b["asset"] == "USDT":
+            if b["asset"] in ("USDT", "USDC"):
                 return round(float(b["balance"]), 2)
     except Exception as e:
         print(f"Ошибка баланса: {e}")
