@@ -144,7 +144,8 @@ def get_open_trades():
                 SELECT t.*,
                        s.strategy, s.tp, s.sl,
                        s.status as strat_status,
-                       s.close_time as strat_close
+                       s.close_time as strat_close,
+                       s.pnl_pct as pnl_pct
                 FROM trades t
                 JOIN trade_strategies s ON s.trade_id = t.id
                 WHERE t.id IN (
@@ -166,7 +167,8 @@ def get_closed_trades(limit=2000, bot_name=None):
                 rows = conn.execute("""
                     SELECT t.*, s.strategy, s.tp, s.sl,
                            s.status as strat_status,
-                           s.close_time as strat_close
+                           s.close_time as strat_close,
+                           s.pnl_pct as pnl_pct
                     FROM trades t
                     JOIN trade_strategies s ON s.trade_id = t.id
                     WHERE t.id IN (
@@ -180,7 +182,8 @@ def get_closed_trades(limit=2000, bot_name=None):
                 rows = conn.execute("""
                     SELECT t.*, s.strategy, s.tp, s.sl,
                            s.status as strat_status,
-                           s.close_time as strat_close
+                           s.close_time as strat_close,
+                           s.pnl_pct as pnl_pct
                     FROM trades t
                     JOIN trade_strategies s ON s.trade_id = t.id
                     WHERE t.id IN (
