@@ -79,12 +79,13 @@ def get_balance():
     """Получает баланс с Binance Futures."""
     try:
         from binance.client import Client
-        client = Client(API_KEY, API_SECRET)
-        # Для реального счёта: client = Client(API_KEY, API_SECRET)
-        account = client.futures_account_balance()
+        c = Client(API_KEY, API_SECRET)
+        account = c.futures_account_balance()
         for b in account:
             if b["asset"] in ("USDT", "USDC"):
-                return round(float(b["balance"]), 2)
+                val = float(b["balance"])
+                if val > 0:
+                    return round(val, 2)
     except Exception as e:
         print(f"Ошибка баланса: {e}")
     return None
