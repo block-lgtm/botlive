@@ -140,6 +140,26 @@ def commission_stats():
 def close_strategy(trade_id: str, strategy: str, price: float = 0):
     return manual_close_strategy(trade_id, strategy, price)
 
+@app.post("/trades/{trade_id}/close/{strategy}")
+def close_strategy(trade_id: str, strategy: str, price: float = 0):
+    result = manual_close_strategy(trade_id, strategy, price)
+    if "error" not in result:
+        # Обновляем Excel
+        try:
+            import openpyxl
+            excel_file = f"/root/bot/botlive/trades_LIVE12_4_live.xlsx"
+            if os.path.exists(excel_file):
+                wb = openpyxl.load_workbook(excel_file)
+                ws = wb.active
+                for row in range(2, ws.max_row + 1):
+                    if str(ws.cell(row, 1).value) == trade_id:
+                        ws.cell(row, 15).value = result["status"]         # колонка O — статус
+                        ws.cell(row, 16).value = round(result["pnl_pct"], 2)  # колонка P — результат %
+                        break
+                wb.save(excel_file)
+        except Exception as e:
+            print(f"Ошибка обновления Excel: {e}")
+    return result
 
 @app.get("/balance")
 def balance():
