@@ -138,10 +138,6 @@ def commission_stats():
 
 @app.post("/trades/{trade_id}/close/{strategy}")
 def close_strategy(trade_id: str, strategy: str, price: float = 0):
-    return manual_close_strategy(trade_id, strategy, price)
-
-@app.post("/trades/{trade_id}/close/{strategy}")
-def close_strategy(trade_id: str, strategy: str, price: float = 0):
     result = manual_close_strategy(trade_id, strategy, price)
     if "error" not in result:
         # Обновляем Excel
