@@ -8,7 +8,7 @@ import json
 import argparse
 import openpyxl
 import math
-from db_live import init_db, insert_trade, update_strategy_status
+from db_live import init_db, insert_trade, update_strategy_status, update_commission
 from openpyxl.utils import get_column_letter
 from dotenv import load_dotenv
 from threading import Thread, Lock
@@ -242,17 +242,23 @@ def check_and_close_strategies(symbol, price_high, price_low):
                 # Закрываем реальную позицию на бирже
                 qty = trade.get("qty", 0)
                 if qty > 0:
+                    def close_and_save_commission(sym, sid, q, tid):
+                        order = close_order(sym, sid, q)
+                        if order:
+                            open_order_id  = trade.get("open_order_id", 0)
+                            close_order_id = order.get("orderId", 0)
+                            comm_open  = get_commission(sym, open_order_id)
+                            comm_close = get_commission(sym, close_order_id)
+                            total_comm = round(comm_open + comm_close, 6)
+                            from db_live import update_commission
+                            update_commission(tid, total_comm)
+                            print(f"💸 Комиссия {sym}: {total_comm}")
+                        Thread(target=update_trade_status_in_excel, args=(tid, result), daemon=True).start()
                     Thread(
-                        target=close_order,
-                        args=(symbol, trade["side"], qty),
+                        target=close_and_save_commission,
+                        args=(symbol, trade["side"], qty, trade_id),
                         daemon=True
                     ).start()
-
-                Thread(
-                    target=update_trade_status_in_excel,
-                    args=(trade_id, result),
-                    daemon=True
-                ).start()
 
                 send_telegram(
                     f"{'✅' if result=='TP' else '❌'} {result} | {BOT_NAME}\n"
@@ -269,6 +275,19 @@ def check_and_close_strategies(symbol, price_high, price_low):
     if closed_trades:
         save_active_trades()
     return closed_trades
+
+def get_commission(symbol, order_id):
+    """Получает комиссию за конкретный ордер."""
+    try:
+        trades = client.futures_account_trades(symbol=symbol, limit=20)
+        total = 0.0
+        for t in trades:
+            if str(t.get("orderId")) == str(order_id):
+                total += abs(float(t.get("commission", 0)))
+        return round(total, 6)
+    except Exception as e:
+        print(f"Ошибка комиссии {symbol}: {e}")
+        return 0.0
 
 # ================= TELEGRAM =================
 def send_telegram(message: str):
@@ -509,7 +528,7 @@ def start_price_monitor(symbol):
                     check_and_close_strategies(symbol, price, price)
             except Exception as e:
                 print(f"Ошибка мониторинга {symbol}: {e}")
-            time.sleep(2)
+            time.sleep(1)
 
     Thread(target=monitor, daemon=True).start()
 
@@ -688,6 +707,7 @@ def main():
 
             with TRADES_LOCK:
                 ACTIVE_TRADES[trade_id] = {
+                    "open_order_id": order.get("orderId", 0),
                     "symbol":      symbol,
                     "side":        side,
                     "entry_price": real_entry,

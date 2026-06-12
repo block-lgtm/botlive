@@ -32,7 +32,8 @@ def init_db():
                 vol_24h     REAL,
                 corr_btc    TEXT,
                 signals     TEXT,
-                delta_pct   REAL
+                delta_pct   REAL,
+                commission  REAL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS trade_strategies (
@@ -409,5 +410,30 @@ def get_weekday_stats(date_from=None, date_to=None, strategies=None):
                         "pnl":round(d["pnl"],2),
                         "winrate":round(d["tp"]/total*100,1) if total>0 else 0})
             return result
+        finally:
+            conn.close()
+
+def update_commission(trade_id, commission):
+    with _DB_LOCK:
+        conn = get_conn()
+        try:
+            conn.execute(
+                "UPDATE trades SET commission = ? WHERE id = ?",
+                (commission, trade_id)
+            )
+            conn.commit()
+        except Exception as e:
+            print(f"Ошибка update_commission {trade_id}: {e}")
+        finally:
+            conn.close()
+
+def get_total_commission():
+    with _DB_LOCK:
+        conn = get_conn()
+        try:
+            row = conn.execute(
+                "SELECT COALESCE(SUM(commission), 0) as total FROM trades"
+            ).fetchone()
+            return round(float(row["total"]), 4)
         finally:
             conn.close()

@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from db_live import (
     get_open_trades, get_closed_trades, get_stats,
-    get_daily_stats, manual_close_strategy, get_symbol_stats, get_weekday_stats
+    get_daily_stats, manual_close_strategy, get_symbol_stats, get_weekday_stats,
+    get_total_commission
 )
 
 load_dotenv()
@@ -51,6 +52,7 @@ def group_trades_by_id(rows):
                 "corr_btc":    row["corr_btc"],
                 "signals":     row["signals"],
                 "delta_pct":   row["delta_pct"],
+                "commission": row.get("commission", 0),
                 "strategies":  {},
             }
         trades[tid]["strategies"][row["strategy"]] = {
@@ -129,6 +131,10 @@ def symbol_stats(date_from: str = None, date_to: str = None, strategies: str = N
 def weekday_stats(date_from: str = None, date_to: str = None, strategies: str = None):
     strats = strategies.split(",") if strategies else None
     return get_weekday_stats(date_from=date_from, date_to=date_to, strategies=strats)
+
+@app.get("/stats/commission")
+def commission_stats():
+    return {"total_commission": get_total_commission()}
 
 @app.post("/trades/{trade_id}/close/{strategy}")
 def close_strategy(trade_id: str, strategy: str, price: float = 0):
