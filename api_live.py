@@ -58,6 +58,7 @@ def group_trades_by_id(rows):
             "sl":         row["sl"],
             "status":     row["strat_status"],
             "close_time": row.get("strat_close"),
+             "pnl_pct":    row.get("pnl_pct"),
         }
     return list(trades.values())
 
@@ -80,6 +81,7 @@ def get_balance():
     try:
         from binance.client import Client
         c = Client(API_KEY, API_SECRET)
+        c.FUTURES_URL = "https://demo-fapi.binance.com/fapi"
         account = c.futures_account_balance()
         for b in account:
             if b["asset"] in ("USDT", "USDC"):

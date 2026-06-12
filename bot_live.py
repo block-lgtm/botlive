@@ -60,6 +60,7 @@ API_SECRET = os.getenv("API_SECRET_LIVE")
 # ================= КЛИЕНТ =================
 # Для тестнета:
 client = Client(API_KEY, API_SECRET)
+client.FUTURES_URL = "https://demo-fapi.binance.com/fapi"
 # Для реального счёта — убери testnet=True:
 # client = Client(API_KEY, API_SECRET)
 
@@ -228,9 +229,15 @@ def check_and_close_strategies(symbol, price_high, price_low):
                 elif price_low  <= strat["tp"]: result = "TP"
 
             if result:
+                # Считаем реальный PnL
+                entry = trade["entry_price"]
+                if trade["side"] == "BUY":
+                    real_pnl = (price_high - entry) / entry * 100 if result == "TP" else (price_low - entry) / entry * 100
+                else:
+                    real_pnl = (entry - price_low) / entry * 100 if result == "TP" else (entry - price_high) / entry * 100
                 strat["status"]     = result
                 strat["close_time"] = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
-                update_strategy_status(trade_id, STRATEGY_NAME, result)
+                update_strategy_status(trade_id, STRATEGY_NAME, result, pnl_pct=round(real_pnl, 2))
 
                 # Закрываем реальную позицию на бирже
                 qty = trade.get("qty", 0)

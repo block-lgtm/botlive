@@ -42,7 +42,8 @@ def init_db():
                 tp         REAL,
                 sl         REAL,
                 status     TEXT DEFAULT 'OPEN',
-                close_time TEXT
+                close_time TEXT,
+                pnl_pct    REAL
             );
 
             CREATE INDEX IF NOT EXISTS idx_trades_symbol
@@ -104,16 +105,16 @@ def insert_trade(trade_id, bot_name, trade_info, vol_text, vol_24h, corr_text):
             conn.close()
 
 
-def update_strategy_status(trade_id, strategy_name, status):
+def update_strategy_status(trade_id, strategy_name, status, pnl_pct=None):
     with _DB_LOCK:
         conn = get_conn()
         try:
             now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             conn.execute("""
                 UPDATE trade_strategies
-                SET status = ?, close_time = ?
+                SET status = ?, close_time = ?, pnl_pct = ?
                 WHERE trade_id = ? AND strategy = ?
-            """, (status, now, trade_id, strategy_name))
+            """, (status, now, pnl_pct, trade_id, strategy_name))
 
             row = conn.execute("""
                 SELECT COUNT(*) as cnt FROM trade_strategies
@@ -309,10 +310,9 @@ def manual_close_strategy(trade_id, strategy_name, close_price):
             status = "TP" if pnl_pct >= 0 else "SL"
 
             conn.execute("""
-                UPDATE trade_strategies SET status = ?, close_time = ?
+                UPDATE trade_strategies SET status = ?, close_time = ?, pnl_pct = ?
                 WHERE trade_id = ? AND strategy = ?
-            """, (status, now, trade_id, strategy_name))
-
+            """, (status, now, round(pnl_pct, 2), trade_id, strategy_name))
             open_count = conn.execute("""
                 SELECT COUNT(*) FROM trade_strategies
                 WHERE trade_id = ? AND status = 'OPEN'
