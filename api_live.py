@@ -80,7 +80,6 @@ def get_balance():
     try:
         from binance.client import Client
         client = Client(API_KEY, API_SECRET)
-        client.FUTURES_URL = "https://demo-fapi.binance.com/fapi"
         # Для реального счёта: client = Client(API_KEY, API_SECRET)
         account = client.futures_account_balance()
         for b in account:

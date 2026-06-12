@@ -60,7 +60,6 @@ API_SECRET = os.getenv("API_SECRET_LIVE")
 # ================= КЛИЕНТ =================
 # Для тестнета:
 client = Client(API_KEY, API_SECRET)
-client.FUTURES_URL = "https://demo-fapi.binance.com/fapi"
 # Для реального счёта — убери testnet=True:
 # client = Client(API_KEY, API_SECRET)
 
