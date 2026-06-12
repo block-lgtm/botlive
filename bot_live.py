@@ -229,12 +229,12 @@ def check_and_close_strategies(symbol, price_high, price_low):
                 elif price_low  <= strat["tp"]: result = "TP"
 
             if result:
-                # Считаем реальный PnL
                 entry = trade["entry_price"]
+                close_price = strat["tp"] if result == "TP" else strat["sl"]
                 if trade["side"] == "BUY":
-                    real_pnl = (price_high - entry) / entry * 100 if result == "TP" else (price_low - entry) / entry * 100
+                    real_pnl = (close_price - entry) / entry * 100
                 else:
-                    real_pnl = (entry - price_low) / entry * 100 if result == "TP" else (entry - price_high) / entry * 100
+                    real_pnl = (entry - close_price) / entry * 100
                 strat["status"]     = result
                 strat["close_time"] = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
                 update_strategy_status(trade_id, STRATEGY_NAME, result, pnl_pct=round(real_pnl, 2))
@@ -242,7 +242,7 @@ def check_and_close_strategies(symbol, price_high, price_low):
                 # Закрываем реальную позицию на бирже
                 qty = trade.get("qty", 0)
                 if qty > 0:
-                    def close_and_save_commission(sym, sid, q, tid):
+                    def close_and_save_commission(sym, sid, q, tid, pnl):
                         order = close_order(sym, sid, q)
                         if order:
                             open_order_id  = trade.get("open_order_id", 0)
@@ -253,10 +253,10 @@ def check_and_close_strategies(symbol, price_high, price_low):
                             from db_live import update_commission
                             update_commission(tid, total_comm)
                             print(f"💸 Комиссия {sym}: {total_comm}")
-                        Thread(target=update_trade_status_in_excel, args=(tid, result), daemon=True).start()
+                        Thread(target=update_trade_status_in_excel, args=(tid, result, round(pnl, 2)), daemon=True).start()
                     Thread(
                         target=close_and_save_commission,
-                        args=(symbol, trade["side"], qty, trade_id),
+                        args=(symbol, trade["side"], qty, trade_id, real_pnl),
                         daemon=True
                     ).start()
 
@@ -324,7 +324,7 @@ def write_trade_to_excel(trade_id, symbol, side, entry_price, qty, tp, sl, corr_
         ])
         wb.save(EXCEL_FILE)
 
-def update_trade_status_in_excel(trade_id, status):
+def update_trade_status_in_excel(trade_id, status, pnl_pct=None):
     with EXCEL_LOCK:
         if not os.path.exists(EXCEL_FILE):
             return
@@ -332,7 +332,9 @@ def update_trade_status_in_excel(trade_id, status):
         ws = wb.active
         for row in range(2, ws.max_row + 1):
             if str(ws.cell(row, 1).value) == trade_id:
-                ws.cell(row, 15).value = status  # колонка "Статус"
+                ws.cell(row, 15).value = status
+                if pnl_pct is not None:
+                    ws.cell(row, 16).value = round(pnl_pct, 2)
                 break
         wb.save(EXCEL_FILE)
 
