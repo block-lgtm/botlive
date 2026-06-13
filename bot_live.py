@@ -521,11 +521,10 @@ def start_price_monitor(symbol):
                         _monitored_symbols.discard(symbol)
                     print(f"👁️ Мониторинг остановлен: {symbol}")
                     break
-                ticker = client.futures_symbol_ticker(symbol=symbol)
-                # Если вернулся список — берём первый элемент
+                ticker = client.futures_mark_price(symbol=symbol)
                 if isinstance(ticker, list):
                     ticker = ticker[0]
-                price = float(ticker["price"])
+                price = float(ticker["markPrice"])
                 if price > 0:
                     check_and_close_strategies(symbol, price, price)
             except Exception as e:
