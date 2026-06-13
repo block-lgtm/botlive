@@ -20,6 +20,10 @@ load_dotenv()
 API_KEY    = os.getenv("API_KEY_LIVE")
 API_SECRET = os.getenv("API_SECRET_LIVE")
 
+from binance.client import Client as BinanceClient
+_binance_client = BinanceClient(API_KEY, API_SECRET)
+_binance_client.FUTURES_URL = "https://demo-fapi.binance.com/fapi"
+
 app = FastAPI(title="Live Trading Dashboard")
 
 app.add_middleware(
@@ -234,6 +238,14 @@ async def push_updates():
             rows   = get_open_trades()
             trades = group_trades_by_id(rows)
             trades = [enrich_open_trade(t) for t in trades]
+            # Добавляем текущую цену
+            for t in trades:
+                try:
+                    ticker = _binance_client.futures_mark_price(symbol=t["symbol"])
+                    if isinstance(ticker, list): ticker = ticker[0]
+                    t["current_price"] = float(ticker["markPrice"])
+                except:
+                    t["current_price"] = None
             # Баланс обновляем раз в минуту чтобы не спамить API
             balance = get_balance() if counter % 12 == 0 else None
             payload = {
