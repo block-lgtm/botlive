@@ -22,7 +22,6 @@ API_SECRET = os.getenv("API_SECRET_LIVE")
 
 from binance.client import Client as BinanceClient
 _binance_client = BinanceClient(API_KEY, API_SECRET)
-_binance_client.FUTURES_URL = "https://demo-fapi.binance.com/fapi"
 
 app = FastAPI(title="Live Trading Dashboard")
 
@@ -87,7 +86,6 @@ def get_balance():
     try:
         from binance.client import Client
         c = Client(API_KEY, API_SECRET)
-        c.FUTURES_URL = "https://demo-fapi.binance.com/fapi"
         account = c.futures_account_balance()
         for b in account:
             if b["asset"] in ("USDT", "USDC"):
