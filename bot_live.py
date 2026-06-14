@@ -508,6 +508,8 @@ def start_price_monitor(symbol):
 
     def monitor():
         print(f"👁️ Мониторинг: {symbol}")
+        alerted_minus5 = set()
+        alerted_plus8  = set()
         while True:
             try:
                 with TRADES_LOCK:
@@ -526,6 +528,19 @@ def start_price_monitor(symbol):
                 price = float(ticker["markPrice"])
                 if price > 0:
                     check_and_close_strategies(symbol, price, price)
+                    with TRADES_LOCK:
+                        for tid, trade in ACTIVE_TRADES.items():
+                            if trade["symbol"] != symbol: continue
+                            if trade.get("strategy", {}).get("status") != "OPEN": continue
+                            entry = trade["entry_price"]
+                            side  = trade["side"]
+                            pnl = (price-entry)/entry*100 if side=="BUY" else (entry-price)/entry*100
+                            if pnl <= -5 and tid not in alerted_minus5:
+                                alerted_minus5.add(tid)
+                                send_telegram(f"⚠️ {symbol} {side} | PnL: {pnl:.2f}%\nВозможный сквиз! Вход: {entry} | Цена: {price:.6f}")
+                            if pnl >= 8 and tid not in alerted_plus8:
+                                alerted_plus8.add(tid)
+                                send_telegram(f"🎯 {symbol} {side} | PnL: +{pnl:.2f}%\nБлизко к тейку! Вход: {entry} | Цена: {price:.6f}")
             except Exception as e:
                 print(f"Ошибка мониторинга {symbol}: {e}")
             time.sleep(1)
@@ -560,6 +575,44 @@ def sync_active_trades_with_db():
 
 _need_restart = [False]
 
+def daily_report():
+    while True:
+        now = datetime.now(UTC)
+        yesterday = now.strftime("%Y-%m-%d")  # запоминаем ДО sleep
+        seconds_to_midnight = ((23 - now.hour) * 3600 +
+                               (59 - now.minute) * 60 +
+                               (60 - now.second))
+        time.sleep(seconds_to_midnight)
+        try:
+            from db_live import get_closed_trades
+            yesterday = datetime.now(UTC).strftime("%Y-%m-%d")
+            trades = get_closed_trades(limit=2000)
+            day_trades = [t for t in trades if t.get("close_time", "").startswith(yesterday)]
+            tp = sum(1 for t in day_trades if t.get("strat_status") == "TP")
+            sl = sum(1 for t in day_trades if t.get("strat_status") == "SL")
+            total = tp + sl
+            wr = round(tp / total * 100, 1) if total > 0 else 0
+            pnl = (tp * 0.12 - sl * 0.04) * MARGIN_USDT * LEVERAGE
+            buy_tp  = sum(1 for t in day_trades if t.get("side")=="BUY" and t.get("strat_status")=="TP")
+            buy_sl  = sum(1 for t in day_trades if t.get("side")=="BUY" and t.get("strat_status")=="SL")
+            sell_tp = sum(1 for t in day_trades if t.get("side")=="SELL" and t.get("strat_status")=="TP")
+            sell_sl = sum(1 for t in day_trades if t.get("side")=="SELL" and t.get("strat_status")=="SL")
+            buy_pnl  = (buy_tp * 0.12 - buy_sl * 0.04) * MARGIN_USDT * LEVERAGE
+            sell_pnl = (sell_tp * 0.12 - sell_sl * 0.04) * MARGIN_USDT * LEVERAGE
+            send_telegram(
+                f"📊 Дневной отчёт | {yesterday}\n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"Сделок: {total} | WR: {wr}%\n"
+                f"PnL: {'+' if pnl>=0 else ''}{pnl:.2f}$\n"
+                f"TP: {tp} | SL: {sl}\n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"BUY:  {buy_tp}TP/{buy_sl}SL | {'+' if buy_pnl>=0 else ''}{buy_pnl:.2f}$\n"
+                f"SELL: {sell_tp}TP/{sell_sl}SL | {'+' if sell_pnl>=0 else ''}{sell_pnl:.2f}$"
+            )
+        except Exception as e:
+            print(f"Ошибка дневного отчёта: {e}")
+        time.sleep(60)
+
 # ================= MAIN =================
 def main():
     global _need_restart
@@ -571,6 +624,7 @@ def main():
             start_price_monitor(trade["symbol"])
 
     Thread(target=sync_active_trades_with_db, daemon=True).start()
+    Thread(target=daily_report, daemon=True).start()
 
     symbols = get_liquid_futures_symbols()
     print(f"✅ Ликвидных токенов: {len(symbols)}")

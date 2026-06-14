@@ -8,6 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import json
 import os
+import secrets
+from fastapi import Depends, HTTPException
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from db_live import (
@@ -15,6 +19,8 @@ from db_live import (
     get_daily_stats, manual_close_strategy, get_symbol_stats, get_weekday_stats,
     get_total_commission
 )
+
+security = HTTPBasic()
 
 load_dotenv()
 API_KEY    = os.getenv("API_KEY_LIVE")
@@ -34,6 +40,18 @@ app.add_middleware(
 
 STRATEGY_NAME = "12:4"
 
+def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
+    pwd = os.getenv("DASHBOARD_PASSWORD", "changeme")
+    correct_password = secrets.compare_digest(credentials.password, pwd)
+    correct_username = secrets.compare_digest(credentials.username, "admin")
+    if not (correct_username and correct_password):
+        raise HTTPException(status_code=401, headers={"WWW-Authenticate": "Basic"})
+    return credentials
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard(credentials: HTTPBasicCredentials = Depends(check_auth)):
+    with open("/root/bot/botlive/dashboard_live.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 def group_trades_by_id(rows):
     trades = {}
