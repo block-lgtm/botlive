@@ -134,10 +134,10 @@ def setup_symbol(symbol, side):
     """Устанавливает плечо и изолированную маржу для символа."""
     try:
         client.futures_change_leverage(symbol=symbol, leverage=LEVERAGE)
-        client.futures_change_margin_type(symbol=symbol, marginType="ISOLATED")
-        print(f"⚙️ {symbol}: плечо {LEVERAGE}x, маржа ISOLATED")
+        client.futures_change_margin_type(symbol=symbol, marginType="CROSS")
+        print(f"⚙️ {symbol}: плечо {LEVERAGE}x, маржа CROSS")
     except Exception as e:
-        # Ошибка -4046 = маржа уже ISOLATED — не критично
+        # Ошибка -4046 = маржа уже CROSS — не критично
         if "-4046" not in str(e):
             print(f"⚠️ setup_symbol {symbol}: {e}")
 
