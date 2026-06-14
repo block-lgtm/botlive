@@ -138,19 +138,19 @@ def stats():
 
 
 @app.get("/stats/daily")
-def daily_stats(date_from: str = None, date_to: str = None, strategies: str = None):
+def daily_stats(date_from: str = None, date_to: str = None, strategies: str = None, side: str = None):
     strats = strategies.split(",") if strategies else None
-    return get_daily_stats(date_from=date_from, date_to=date_to, strategies=strats)
+    return get_daily_stats(date_from=date_from, date_to=date_to, strategies=strats, side=side)
 
 @app.get("/stats/symbols")
-def symbol_stats(date_from: str = None, date_to: str = None, strategies: str = None):
+def symbol_stats(date_from: str = None, date_to: str = None, strategies: str = None, side: str = None):
     strats = strategies.split(",") if strategies else None
-    return get_symbol_stats(date_from=date_from, date_to=date_to, strategies=strats)
+    return get_symbol_stats(date_from=date_from, date_to=date_to, strategies=strats, side=side)
 
 @app.get("/stats/weekdays")
-def weekday_stats(date_from: str = None, date_to: str = None, strategies: str = None):
+def weekday_stats(date_from: str = None, date_to: str = None, strategies: str = None, side: str = None):
     strats = strategies.split(",") if strategies else None
-    return get_weekday_stats(date_from=date_from, date_to=date_to, strategies=strats)
+    return get_weekday_stats(date_from=date_from, date_to=date_to, strategies=strats, side=side)
 
 @app.get("/stats/commission")
 def commission_stats():

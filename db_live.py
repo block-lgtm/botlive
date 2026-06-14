@@ -238,7 +238,7 @@ def get_stats(bot_name=None):
             conn.close()
 
 
-def get_daily_stats(bot_name=None, date_from=None, date_to=None, strategies=None):
+def get_daily_stats(bot_name=None, date_from=None, date_to=None, strategies=None, side=None):
     with _DB_LOCK:
         conn = get_conn()
         try:
@@ -252,6 +252,9 @@ def get_daily_stats(bot_name=None, date_from=None, date_to=None, strategies=None
                 conditions.append("DATE(s.close_time) <= ?"); params.append(date_to)
             if strategies:
                 conditions.append(f"s.strategy IN ({','.join('?'*len(strategies))})"); params.extend(strategies)
+            if side and side != "all":
+                conditions.append("t.side = ?")
+                params.append(side)
 
             where = " AND ".join(conditions)
             rows  = conn.execute(f"""
@@ -332,7 +335,7 @@ def manual_close_strategy(trade_id, strategy_name, close_price):
         finally:
             conn.close()
 
-def get_symbol_stats(date_from=None, date_to=None, strategies=None):
+def get_symbol_stats(date_from=None, date_to=None, strategies=None, side=None):
     with _DB_LOCK:
         conn = get_conn()
         try:
@@ -344,6 +347,9 @@ def get_symbol_stats(date_from=None, date_to=None, strategies=None):
                 conditions.append("DATE(s.close_time) <= ?"); params.append(date_to)
             if strategies:
                 conditions.append(f"s.strategy IN ({','.join('?'*len(strategies))})"); params.extend(strategies)
+            if side and side != "all":
+                conditions.append("t.side = ?")
+                params.append(side)
             where = " AND ".join(conditions)
             rows = conn.execute(f"""
                 SELECT t.symbol, s.strategy, s.status, COUNT(*) as cnt
@@ -373,7 +379,7 @@ def get_symbol_stats(date_from=None, date_to=None, strategies=None):
             conn.close()
 
 
-def get_weekday_stats(date_from=None, date_to=None, strategies=None):
+def get_weekday_stats(date_from=None, date_to=None, strategies=None, side=None):
     with _DB_LOCK:
         conn = get_conn()
         try:
@@ -385,6 +391,9 @@ def get_weekday_stats(date_from=None, date_to=None, strategies=None):
                 conditions.append("DATE(s.close_time) <= ?"); params.append(date_to)
             if strategies:
                 conditions.append(f"s.strategy IN ({','.join('?'*len(strategies))})"); params.extend(strategies)
+            if side and side != "all":
+                conditions.append("t.side = ?")
+                params.append(side)
             where = " AND ".join(conditions)
             rows = conn.execute(f"""
                 SELECT strftime('%w', s.close_time) as dow,
