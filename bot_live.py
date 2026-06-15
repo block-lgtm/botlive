@@ -1,7 +1,7 @@
 from binance.client import Client
 import pandas as pd
 import time
-from datetime import datetime, UTC
+from datetime import datetime, timezone, timedelta
 import requests
 import os
 import json
@@ -13,6 +13,8 @@ from openpyxl.utils import get_column_letter
 from dotenv import load_dotenv
 from threading import Thread, Lock
 from queue import Queue
+
+RIGA = timezone(timedelta(hours=3))
 
 # ===== ЗАГРУЗКА КОНФИГА =====
 parser = argparse.ArgumentParser()
@@ -577,8 +579,8 @@ _need_restart = [False]
 
 def daily_report():
     while True:
-        now = datetime.now(UTC)
-        yesterday = now.strftime("%Y-%m-%d")  # запоминаем ДО sleep
+        now = datetime.now(RIGA)
+        yesterday = now.strftime("%Y-%m-%d")
         seconds_to_midnight = ((23 - now.hour) * 3600 +
                                (59 - now.minute) * 60 +
                                (60 - now.second))
