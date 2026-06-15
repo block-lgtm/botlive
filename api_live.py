@@ -162,12 +162,13 @@ def commission_stats():
 def close_strategy(trade_id: str, strategy: str, price: float = 0):
     # Сначала закрываем на бирже
     try:
-        open_trades = get_open_trades()
-        trade = next((t for t in open_trades if t["id"] == trade_id), None)
+        rows = get_open_trades()
+        trade = next((t for t in rows if t["id"] == trade_id), None)
         if trade:
             symbol = trade["symbol"]
             side = trade["side"]
-            qty = trade.get("qty", 0)
+            qty = float(trade.get("qty") or 0)
+            print(f"🔍 Ручное закрытие: {symbol} {side} qty={qty}")
             if qty > 0:
                 position_side = "LONG" if side == "BUY" else "SHORT"
                 close_side = "SELL" if side == "BUY" else "BUY"
@@ -179,8 +180,11 @@ def close_strategy(trade_id: str, strategy: str, price: float = 0):
                     quantity=qty,
                 )
                 print(f"✅ Ручное закрытие на бирже: {symbol} {side} {qty}")
+        else:
+            print(f"❌ Сделка {trade_id} не найдена в открытых")
     except Exception as e:
         print(f"❌ Ошибка ручного закрытия на бирже: {e}")
+        import traceback; traceback.print_exc()
 
     result = manual_close_strategy(trade_id, strategy, price)
     if "error" not in result:
