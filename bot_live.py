@@ -668,9 +668,6 @@ def main():
             if not candle["x"]:
                 return
 
-            # Проверка TP/SL по свече
-            check_and_close_strategies(symbol, float(candle["h"]), float(candle["l"]))
-
             if symbol not in symbols:
                 return
 
