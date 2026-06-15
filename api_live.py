@@ -106,7 +106,7 @@ def get_balance():
         c = Client(API_KEY, API_SECRET)
         account = c.futures_account_balance()
         for b in account:
-            if b["asset"] in ("USDT", "USDC"):
+            if b["asset"] in ("USDT", "USDC", "BNFCR"):
                 val = float(b["balance"])
                 if val > 0:
                     return round(val, 2)
