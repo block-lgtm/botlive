@@ -257,9 +257,10 @@ def get_daily_stats(bot_name=None, date_from=None, date_to=None, strategies=None
                 params.append(side)
 
             where = " AND ".join(conditions)
-            rows  = conn.execute(f"""
+            rows = conn.execute(f"""
                 SELECT DATE(s.close_time) as date,
-                       s.strategy, s.status, COUNT(*) as cnt
+                    s.strategy, s.status, COUNT(*) as cnt,
+                    COALESCE(SUM(s.pnl_pct), 0) as total_pnl
                 FROM trade_strategies s
                 JOIN trades t ON t.id = s.trade_id
                 WHERE {where}
@@ -267,18 +268,16 @@ def get_daily_stats(bot_name=None, date_from=None, date_to=None, strategies=None
                 ORDER BY date ASC
             """, params).fetchall()
 
-            STRAT_PCT = {"12:4": {"tp": 12, "sl": 4}}
             from collections import defaultdict
             days = defaultdict(lambda: {"tp": 0, "sl": 0, "pnl": 0.0})
             for row in rows:
-                d   = row["date"]
-                pct = STRAT_PCT.get(row["strategy"], {"tp": 0, "sl": 0})
+                d = row["date"]
                 if row["status"] == "TP":
                     days[d]["tp"] += row["cnt"]
-                    days[d]["pnl"] += row["cnt"] * pct["tp"]
+                    days[d]["pnl"] += row["total_pnl"]
                 else:
                     days[d]["sl"] += row["cnt"]
-                    days[d]["pnl"] -= row["cnt"] * pct["sl"]
+                    days[d]["pnl"] += row["total_pnl"]
 
             result = []
             for date in sorted(days.keys()):
@@ -352,22 +351,22 @@ def get_symbol_stats(date_from=None, date_to=None, strategies=None, side=None):
                 params.append(side)
             where = " AND ".join(conditions)
             rows = conn.execute(f"""
-                SELECT t.symbol, s.strategy, s.status, COUNT(*) as cnt
+                SELECT t.symbol, s.strategy, s.status, COUNT(*) as cnt,
+                    COALESCE(SUM(s.pnl_pct), 0) as total_pnl
                 FROM trade_strategies s JOIN trades t ON t.id=s.trade_id
                 WHERE {where}
                 GROUP BY t.symbol, s.strategy, s.status
             """, params).fetchall()
-            STRAT_PCT = {"12:4": {"tp": 12, "sl": 4}}
+
             from collections import defaultdict
             syms = defaultdict(lambda: {"tp":0,"sl":0,"pnl":0.0})
             for row in rows:
-                pct = STRAT_PCT.get(row["strategy"], {"tp":0,"sl":0})
                 if row["status"] == "TP":
                     syms[row["symbol"]]["tp"] += row["cnt"]
-                    syms[row["symbol"]]["pnl"] += row["cnt"] * pct["tp"]
+                    syms[row["symbol"]]["pnl"] += row["total_pnl"]
                 else:
                     syms[row["symbol"]]["sl"] += row["cnt"]
-                    syms[row["symbol"]]["pnl"] -= row["cnt"] * pct["sl"]
+                    syms[row["symbol"]]["pnl"] += row["total_pnl"]  # уже отрицательный
             result = []
             for sym, d in syms.items():
                 total = d["tp"] + d["sl"]
@@ -397,23 +396,23 @@ def get_weekday_stats(date_from=None, date_to=None, strategies=None, side=None):
             where = " AND ".join(conditions)
             rows = conn.execute(f"""
                 SELECT strftime('%w', s.close_time) as dow,
-                       s.strategy, s.status, COUNT(*) as cnt
+                    s.strategy, s.status, COUNT(*) as cnt,
+                    COALESCE(SUM(s.pnl_pct), 0) as total_pnl
                 FROM trade_strategies s JOIN trades t ON t.id=s.trade_id
                 WHERE {where}
                 GROUP BY dow, s.strategy, s.status
             """, params).fetchall()
-            STRAT_PCT = {"12:4": {"tp": 12, "sl": 4}}
+
             DAY_MAP = {"0":"Sunday","1":"Monday","2":"Tuesday","3":"Wednesday","4":"Thursday","5":"Friday","6":"Saturday"}
             ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
             from collections import defaultdict
             days = defaultdict(lambda: {"tp":0,"sl":0,"pnl":0.0})
             for row in rows:
                 day = DAY_MAP.get(row["dow"], row["dow"])
-                pct = STRAT_PCT.get(row["strategy"], {"tp":0,"sl":0})
                 if row["status"] == "TP":
-                    days[day]["tp"] += row["cnt"]; days[day]["pnl"] += row["cnt"]*pct["tp"]
+                    days[day]["tp"] += row["cnt"]; days[day]["pnl"] += row["total_pnl"]
                 else:
-                    days[day]["sl"] += row["cnt"]; days[day]["pnl"] -= row["cnt"]*pct["sl"]
+                    days[day]["sl"] += row["cnt"]; days[day]["pnl"] += row["total_pnl"]
             result = []
             for day in ORDER:
                 if day in days:
