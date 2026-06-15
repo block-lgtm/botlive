@@ -785,6 +785,7 @@ def main():
                 "symbol":      symbol,
                 "side":        side,
                 "entry_price": real_entry,
+                "qty":         qty,
                 "signals":     res["signals"],
                 "strategies":  {STRATEGY_NAME: {"tp": tp, "sl": sl, "status": "OPEN"}},
                 "natr":        res["natr"],
