@@ -160,6 +160,28 @@ def commission_stats():
 
 @app.post("/trades/{trade_id}/close/{strategy}")
 def close_strategy(trade_id: str, strategy: str, price: float = 0):
+    # Сначала закрываем на бирже
+    try:
+        open_trades = get_open_trades()
+        trade = next((t for t in open_trades if t["id"] == trade_id), None)
+        if trade:
+            symbol = trade["symbol"]
+            side = trade["side"]
+            qty = trade.get("qty", 0)
+            if qty > 0:
+                position_side = "LONG" if side == "BUY" else "SHORT"
+                close_side = "SELL" if side == "BUY" else "BUY"
+                _binance_client.futures_create_order(
+                    symbol=symbol,
+                    side=close_side,
+                    positionSide=position_side,
+                    type="MARKET",
+                    quantity=qty,
+                )
+                print(f"✅ Ручное закрытие на бирже: {symbol} {side} {qty}")
+    except Exception as e:
+        print(f"❌ Ошибка ручного закрытия на бирже: {e}")
+
     result = manual_close_strategy(trade_id, strategy, price)
     if "error" not in result:
         # Обновляем Excel
