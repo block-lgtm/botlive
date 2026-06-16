@@ -158,6 +158,19 @@ def weekday_stats(date_from: str = None, date_to: str = None, strategies: str = 
 def commission_stats():
     return {"total_commission": get_total_commission()}
 
+def send_telegram(message: str):
+    bot_token = os.getenv("BOT_TOKEN")
+    chat_id = os.getenv("CHAT_ID")
+    if not bot_token or not chat_id:
+        return
+    try:
+        import requests
+        requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                     data={"chat_id": chat_id, "text": message}, timeout=10)
+    except Exception as e:
+        print(f"Ошибка Telegram: {e}")
+
+
 @app.post("/trades/{trade_id}/close/{strategy}")
 def close_strategy(trade_id: str, strategy: str, price: float = 0):
     # Сначала закрываем на бирже
@@ -187,6 +200,14 @@ def close_strategy(trade_id: str, strategy: str, price: float = 0):
         import traceback; traceback.print_exc()
 
     result = manual_close_strategy(trade_id, strategy, price)
+    if "error" not in result:
+        pnl = result.get("pnl_pct", 0)
+        status = result.get("status", "—")
+        send_telegram(
+            f"🖐 Ручное закрытие\n"
+            f"{trade_id} | {strategy}\n"
+            f"Результат: {status} | PnL: {'+' if pnl>=0 else ''}{pnl:.2f}%"
+        )
     if "error" not in result:
         # Обновляем Excel
         try:
