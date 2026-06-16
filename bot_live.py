@@ -228,12 +228,12 @@ def check_and_close_strategies(symbol, price_high, price_low):
                 elif price_low  <= strat["tp"]: result = "TP"
 
             if result:
+                print(f"{'✅ TP' if result=='TP' else '❌ SL'} | {symbol} {trade['side']} | entry={trade['entry_price']}")
                 entry = trade["entry_price"]
-                close_price = strat["tp"] if result == "TP" else strat["sl"]
                 if trade["side"] == "BUY":
-                    real_pnl = (close_price - entry) / entry * 100
+                    real_pnl = (price_high - entry) / entry * 100 if result == "TP" else (price_low - entry) / entry * 100
                 else:
-                    real_pnl = (entry - close_price) / entry * 100
+                    real_pnl = (entry - price_low) / entry * 100 if result == "TP" else (entry - price_high) / entry * 100
                 strat["status"]     = result
                 strat["close_time"] = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
                 update_strategy_status(trade_id, STRATEGY_NAME, result, pnl_pct=round(real_pnl, 2))
