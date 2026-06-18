@@ -526,21 +526,23 @@ def start_price_monitor(symbol):
                 if isinstance(ticker, list):
                     ticker = ticker[0]
                 price = float(ticker["markPrice"])
-                if price > 0:
-                    check_and_close_strategies(symbol, price, price)
-                    with TRADES_LOCK:
-                        for tid, trade in ACTIVE_TRADES.items():
-                            if trade["symbol"] != symbol: continue
-                            if trade.get("strategy", {}).get("status") != "OPEN": continue
-                            entry = trade["entry_price"]
-                            side  = trade["side"]
-                            pnl = (price-entry)/entry*100 if side=="BUY" else (entry-price)/entry*100
-                            if pnl <= -5 and tid not in alerted_minus5:
-                                alerted_minus5.add(tid)
-                                send_telegram(f"⚠️ {symbol} {side} | PnL: {pnl:.2f}%\nВозможный сквиз! Вход: {entry} | Цена: {price:.6f}")
-                            if pnl >= 8 and tid not in alerted_plus8:
-                                alerted_plus8.add(tid)
-                                send_telegram(f"🎯 {symbol} {side} | PnL: +{pnl:.2f}%\nБлизко к тейку! Вход: {entry} | Цена: {price:.6f}")
+                if price <= 0:
+                    print(f"⚠️ markPrice = 0 для {symbol}, пропускаем")
+                    continue
+                check_and_close_strategies(symbol, price, price)
+                with TRADES_LOCK:
+                    for tid, trade in ACTIVE_TRADES.items():
+                        if trade["symbol"] != symbol: continue
+                        if trade.get("strategy", {}).get("status") != "OPEN": continue
+                        entry = trade["entry_price"]
+                        side  = trade["side"]
+                        pnl = (price-entry)/entry*100 if side=="BUY" else (entry-price)/entry*100
+                        if pnl <= -5 and tid not in alerted_minus5:
+                            alerted_minus5.add(tid)
+                            send_telegram(f"⚠️ {symbol} {side} | PnL: {pnl:.2f}%\nВозможный сквиз! Вход: {entry} | Цена: {price:.6f}")
+                        if pnl >= 8 and tid not in alerted_plus8:
+                            alerted_plus8.add(tid)
+                            send_telegram(f"🎯 {symbol} {side} | PnL: +{pnl:.2f}%\nБлизко к тейку! Вход: {entry} | Цена: {price:.6f}")
             except Exception as e:
                 print(f"Ошибка мониторинга {symbol}: {e}")
             time.sleep(1)
