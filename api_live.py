@@ -108,9 +108,7 @@ def get_balance():
         total = 0.0
         for b in account:
             if b["asset"] in ("USDT", "USDC", "BNFCR"):
-                val = float(b["balance"])
-                if val > 0:
-                    total += val
+                total += float(b["balance"])
         return round(total, 2) if total > 0 else None
     except Exception as e:
         print(f"Ошибка баланса: {e}")

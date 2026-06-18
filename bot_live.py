@@ -241,21 +241,21 @@ def check_and_close_strategies(symbol, price_high, price_low):
                 # Закрываем реальную позицию на бирже
                 qty = trade.get("qty", 0)
                 if qty > 0:
-                    def close_and_save_commission(sym, sid, q, tid, pnl):
+                    def close_and_save_commission(sym, sid, q, tid, pnl, open_oid):
                         order = close_order(sym, sid, q)
                         if order:
-                            open_order_id  = trade.get("open_order_id", 0)
                             close_order_id = order.get("orderId", 0)
-                            comm_open  = get_commission(sym, open_order_id)
+                            comm_open  = get_commission(sym, open_oid)
                             comm_close = get_commission(sym, close_order_id)
                             total_comm = round(comm_open + comm_close, 6)
                             from db_live import update_commission
                             update_commission(tid, total_comm)
                             print(f"💸 Комиссия {sym}: {total_comm}")
                         Thread(target=update_trade_status_in_excel, args=(tid, result, round(pnl, 2)), daemon=True).start()
+
                     Thread(
                         target=close_and_save_commission,
-                        args=(symbol, trade["side"], qty, trade_id, real_pnl),
+                        args=(symbol, trade["side"], qty, trade_id, real_pnl, trade.get("open_order_id", 0)),
                         daemon=True
                     ).start()
 
@@ -585,7 +585,6 @@ def daily_report():
         time.sleep(seconds_to_midnight)
         try:
             from db_live import get_closed_trades
-            yesterday = datetime.now(UTC).strftime("%Y-%m-%d")
             trades = get_closed_trades(limit=2000)
             day_trades = [t for t in trades if t.get("close_time", "").startswith(yesterday)]
             tp = sum(1 for t in day_trades if t.get("strat_status") == "TP")
@@ -611,7 +610,6 @@ def daily_report():
             )
         except Exception as e:
             print(f"Ошибка дневного отчёта: {e}")
-        time.sleep(60)
 
 # ================= MAIN =================
 def main():
