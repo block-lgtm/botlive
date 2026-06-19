@@ -552,6 +552,7 @@ def start_price_monitor(symbol):
         print(f"👁️ Мониторинг: {symbol}")
         alerted_minus5 = set()
         alerted_plus8  = set()
+        alerted_breakeven = set()
         while True:
             try:
                 with TRADES_LOCK:
@@ -585,6 +586,14 @@ def start_price_monitor(symbol):
                         if pnl >= 8 and tid not in alerted_plus8:
                             alerted_plus8.add(tid)
                             send_telegram(f"🎯 {symbol} {side} | PnL: +{pnl:.2f}%\nБлизко к тейку! Вход: {entry} | Цена: {price:.6f}")
+                        if pnl >= 6 and tid not in alerted_breakeven:
+                            alerted_breakeven.add(tid)
+                            if side == "BUY" and trade["strategy"]["sl"] < entry:
+                                trade["strategy"]["sl"] = entry
+                            elif side == "SELL" and trade["strategy"]["sl"] > entry:
+                                trade["strategy"]["sl"] = entry
+                            print(f"🔒 Безубыток: {symbol} SL → {entry}")
+                            send_telegram(f"🔒 Безубыток | {symbol} {side}\nSL перемещён на вход: {entry:.6f}")
             except Exception as e:
                 print(f"Ошибка мониторинга {symbol}: {e}")
             time.sleep(1)
