@@ -303,7 +303,14 @@ def send_telegram(message: str):
 
 def telegram_commands():
     global ALLOW_BUY, ALLOW_SELL
-    last_update_id = 0
+    # При старте пропускаем все старые сообщения
+    try:
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates?offset=-1"
+        r = requests.get(url, timeout=10)
+        updates = r.json().get("result", [])
+        last_update_id = updates[-1]["update_id"] if updates else 0
+    except:
+        last_update_id = 0
     while True:
         try:
             url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates?offset={last_update_id+1}&timeout=30"
