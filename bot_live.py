@@ -69,6 +69,9 @@ BLACKLIST = {
     "INTCUSDT",
 }
 
+ALLOW_BUY  = True
+ALLOW_SELL = True
+
 # Стратегия 12:4 из конфига
 _strat_raw = config.get("STRATEGIES_CONFIG", {})
 _s124 = _strat_raw.get("12:4", {"enabled": True, "tp": 0.12, "sl": 0.04, "BUY": {}, "SELL": {}})
@@ -298,6 +301,45 @@ def send_telegram(message: str):
     except Exception as e:
         print(f"Ошибка Telegram: {e}")
 
+def telegram_commands():
+    global ALLOW_BUY, ALLOW_SELL
+    last_update_id = 0
+    while True:
+        try:
+            url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates?offset={last_update_id+1}&timeout=30"
+            r = requests.get(url, timeout=35)
+            updates = r.json().get("result", [])
+            for upd in updates:
+                last_update_id = upd["update_id"]
+                text = upd.get("message", {}).get("text", "")
+                if text == "/stop":
+                    send_telegram("🛑 Бот остановлен по команде")
+                    os.kill(os.getpid(), 9)
+                elif text == "/nobuy":
+                    ALLOW_BUY = False
+                    send_telegram("🔴 BUY сигналы отключены")
+                elif text == "/nosell":
+                    ALLOW_SELL = False
+                    send_telegram("🔴 SELL сигналы отключены")
+                elif text == "/buy":
+                    ALLOW_BUY = True
+                    send_telegram("🟢 BUY сигналы включены")
+                elif text == "/sell":
+                    ALLOW_SELL = True
+                    send_telegram("🟢 SELL сигналы включены")
+                elif text == "/status":
+                    with TRADES_LOCK:
+                        n = len(ACTIVE_TRADES)
+                    buy_status = "🟢" if ALLOW_BUY else "🔴"
+                    sell_status = "🟢" if ALLOW_SELL else "🔴"
+                    send_telegram(
+                        f"✅ Бот работает | Открытых: {n}\n"
+                        f"{buy_status} BUY | {sell_status} SELL"
+                    )
+        except Exception as e:
+            print(f"Ошибка telegram_commands: {e}")
+        time.sleep(5)
+        
 # ================= EXCEL =================
 def write_trade_to_excel(trade_id, symbol, side, entry_price, qty, tp, sl, corr_text, natr, vol24):
     with EXCEL_LOCK:
@@ -625,6 +667,7 @@ def main():
 
     Thread(target=sync_active_trades_with_db, daemon=True).start()
     Thread(target=daily_report, daemon=True).start()
+    Thread(target=telegram_commands, daemon=True).start()
 
     symbols = get_liquid_futures_symbols()
     print(f"✅ Ликвидных токенов: {len(symbols)}")
@@ -725,6 +768,13 @@ def main():
                 )
             if already_open:
                 print(f"⏭️ {symbol} {side} — уже есть открытая позиция")
+                return
+
+            if side == "BUY" and not ALLOW_BUY:
+                print(f"⏭️ {symbol} BUY — отключены")
+                return
+            if side == "SELL" and not ALLOW_SELL:
+                print(f"⏭️ {symbol} SELL — отключены")
                 return
 
             # Устанавливаем плечо и маржу
