@@ -560,6 +560,7 @@ def start_price_monitor(symbol):
         alerted_minus5 = set()
         alerted_plus8  = set()
         alerted_breakeven = set()
+        last_valid_price = {}
         while True:
             try:
                 with TRADES_LOCK:
@@ -579,6 +580,14 @@ def start_price_monitor(symbol):
                 if price <= 0:
                     print(f"⚠️ markPrice = 0 для {symbol}, пропускаем")
                     continue
+
+                # Проверка на аномальный скачок
+                last = last_valid_price.get(symbol, price)
+                if last > 0 and (price < last * 0.8 or price > last * 1.2):
+                    print(f"⚠️ Аномальная цена {symbol}: {price} (предыдущая: {last}), пропускаем")
+                    continue
+
+                last_valid_price[symbol] = price
                 check_and_close_strategies(symbol, price, price)
                 with TRADES_LOCK:
                     for tid, trade in ACTIVE_TRADES.items():
